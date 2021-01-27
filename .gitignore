@@ -1,0 +1,9 @@
+*~*
+*.kdb
+*.bin
+*.o
+*.out
+*.jpeg
+*_Repaired
+*.swp
+*.un
