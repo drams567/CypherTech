@@ -1,6 +1,8 @@
 #include <iostream>
 #include <fstream>
-#include <filesystem>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include "parseKDB.h"
 
@@ -20,7 +22,7 @@ public:
 	int32_t size;
 	int32_t offset;
 	long hash;
-	string outFilePath;
+	string outPath;
 	unsigned char* data;
 
 	Jpeg()
@@ -28,7 +30,7 @@ public:
 		size = 0;
 		offset = 0;
 		hash = 0;
-		outFilePath = " ";
+		outPath = " ";
 		data = NULL;
 	}
 	~Jpeg()
@@ -38,6 +40,11 @@ public:
 			delete [] data;
 			data = NULL;
 		}
+	}
+	
+	void setOutPath(string newOutPath)
+	{
+		outPath = newOutPath;
 	}
 };
 
@@ -58,9 +65,29 @@ bool checkMatch(const unsigned char* source, const unsigned char* match, const i
 
 /***********************/
 /***** Procedures ******/
-void outputJpegs(const vector<Jpeg> &jpegList, const string inputFileName)
+void outputJpegs(vector<Jpeg> &jpegList, const string inputFileName)
 {
+	string outputDir = inputFileName + "_Repaired";
 	
+	#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
+		// Create directory (Windows), Reference: https://docs.microsoft.com/en-us/windows/win32/fileio/retrieving-and-changing-file-attributes
+		#include <windows.h>
+		CreateDirectory("./" + outputDir);
+	#elif __linux__ || __unix__
+		// Create directory (Linux/Unix), References: https://linux.die.net/man/3/mkdir, https://pubs.opengroup.org/onlinepubs/7908799/xsh/sysstat.h.html
+		mkdir(outputDir.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
+	#endif
+	
+	for(vector<Jpeg>::iterator jpegIt = jpegList.begin(); jpegIt != jpegList.end(); jpegIt++)
+	{
+		string outPath = outputDir + "/" + to_string(jpegIt->offset) + ".jpeg";
+		ofstream jpegStream;
+		jpegStream.open(outPath, ostream::binary | ostream::trunc);
+		jpegStream.write((char*)jpegIt->data, jpegIt->size);
+		jpegStream.close();
+	
+		jpegIt->setOutPath(outPath);
+	}
 }
 
 /***********************/
