@@ -44,6 +44,11 @@ public:
 		}
 	}
 	
+	void print()
+	{
+		cout << getOffset() << " " << getSize() << " " << getHash() << " " << getOutPath();
+	}
+	
 	void setOutPath(string newOutPath) { outPath = newOutPath; }
 	void setHash(string newHash) { hash = newHash; }
 	void setData(unsigned char* newData) { data = newData; }
@@ -90,12 +95,15 @@ void outputJpegs(vector<Jpeg> &jpegList, const string inputFileName)
 	for(vector<Jpeg>::iterator jpegIt = jpegList.begin(); jpegIt != jpegList.end(); jpegIt++)
 	{
 		string outPath = outputDir + "/" + to_string(jpegIt->getOffset()) + ".jpeg";
+		jpegIt->setOutPath(outPath);
+		
 		ofstream jpegStream;
 		jpegStream.open(outPath, ostream::binary | ostream::trunc);
 		jpegStream.write((char*)jpegIt->getData(), jpegIt->getSize());
 		jpegStream.close();
-	
-		jpegIt->setOutPath(outPath);
+		
+		jpegIt->print();
+		cout << endl;
 	}
 }
 
@@ -200,22 +208,16 @@ int main(int argc, char* argv[])
 	delete [] inputBuffer;
 	inputBuffer = NULL;
 
-	// Output jpegs
-	outputJpegs(jpegList, inputFileName);
-
 	// Calculate hash
 	for(vector<Jpeg>::iterator jpegIt = jpegList.begin(); jpegIt != jpegList.end(); jpegIt++)
 	{
 		string data((char*)jpegIt->getData(), jpegIt->getSize());
-		string hash = md5(data);
+		string hash = md5(data); // courtesy of md5 library: http://www.zedwood.com/article/cpp-md5-function
 		jpegIt->setHash(hash);
 	}
 
-	// Print jpeg info
-	for(vector<Jpeg>::iterator jpegIt = jpegList.begin(); jpegIt != jpegList.end(); jpegIt++)
-	{
-		cout << jpegIt->getOffset() << " " << jpegIt->getSize() << " " << jpegIt->getHash() << " " << jpegIt->getOutPath() << endl;
-	}
+	// Output jpegs
+	outputJpegs(jpegList, inputFileName);
 
 	// Clean entries
 	for(i = 0; i < (int32_t)entryList.size(); i++)
