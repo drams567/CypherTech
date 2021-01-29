@@ -27,6 +27,7 @@ private:
 	unsigned char* data;
 
 public:
+	// Constructors and Destructor
 	Jpeg()
 	{
 		size = 0;
@@ -44,17 +45,25 @@ public:
 		}
 	}
 	
+	// Print
 	void print()
 	{
 		cout << getOffset() << " " << getSize() << " " << getHash() << " " << getOutPath();
 	}
 	
+	
+	// Setters
 	void setOutPath(string newOutPath) { outPath = newOutPath; }
 	void setHash(string newHash) { hash = newHash; }
-	void setData(unsigned char* newData) { data = newData; }
 	void setOffset(int32_t newOffset) { offset = newOffset; }
 	void setSize(int32_t newSize) { size = newSize; }
+	void setData(unsigned char* newData, int32_t newSize) 
+	{ 
+		data = newData; 
+		size = newSize;
+	}
 	
+	// Getters
 	unsigned char* getData() { return data; }
 	int32_t getOffset() { return offset; }
 	int32_t getSize() { return size; }
@@ -141,6 +150,59 @@ void readMagicBytesFromKDB(const string kdbFileName, unsigned char* &magicBytes,
 	}
 }
 
+vector<Jpeg> readJpegsFromInput(const string inputFileName, unsigned char* magicBytes, int32_t numMagicBytes)
+{
+	vector<Jpeg> jpegList;
+	
+	// Read input file to buffer
+	int inputStreamLen = 0;
+	unsigned char* inputBuffer = NULL;
+	readFileToBuffer(inputFileName, inputBuffer, inputStreamLen);
+	
+	// First pass, identify jpegs
+	int32_t i = 0;
+	while(i < inputStreamLen)
+	{
+		if(checkMatch(&inputBuffer[i], magicBytes, numMagicBytes) == true)
+		{
+			Jpeg newJpeg;
+			newJpeg.setOffset(i);
+			i += numMagicBytes;
+			while(checkMatch(&inputBuffer[i], JPEG_TERMINATOR, JPEG_TERMINATOR_SIZE) == false)
+			{
+				i++;
+			}
+			int32_t size = (i + JPEG_TERMINATOR_SIZE) - newJpeg.getOffset();
+			newJpeg.setSize(size);
+			jpegList.push_back(newJpeg);
+
+			i += JPEG_TERMINATOR_SIZE - 1;
+		}
+		else
+		{
+			i++;
+		}
+	}
+
+	// Second pass, read and repair jpegs
+	unsigned char* data = NULL;
+	for(vector<Jpeg>::iterator jpegIt = jpegList.begin(); jpegIt != jpegList.end(); jpegIt++)
+	{
+		// Read jpeg data
+		data = new unsigned char[jpegIt->getSize()];
+		memcpy(data, &inputBuffer[jpegIt->getOffset()], jpegIt->getSize());
+		
+		// Repair obfuscated starting bytes
+		memcpy(data, JPEG_START, JPEG_START_SIZE);
+
+		// Save data
+		jpegIt->setData(data, jpegIt->getSize());
+		data = NULL;
+	}
+	
+	return jpegList;
+}
+
 void outputJpegs(vector<Jpeg> &jpegList, const string inputFileName)
 {
 	string outputDir = inputFileName + "_Repaired";
@@ -186,52 +248,9 @@ int main(int argc, char* argv[])
 		exit(0);
 	}
 
-	// Put input file into buffer
+	// Retrieve obfuscated jpegs
 	string inputFileName = argv[2];
-	int inputStreamLen = 0;
-	unsigned char* inputBuffer = NULL;
-	readFileToBuffer(inputFileName, inputBuffer, inputStreamLen);
-
-	// First pass, identify jpegs
-	vector<Jpeg> jpegList;
-	int32_t i = 0;
-	while(i < inputStreamLen)
-	{
-		if(checkMatch(&inputBuffer[i], magicBytes, numMagicBytes) == true)
-		{
-			Jpeg newJpeg;
-			newJpeg.setOffset(i);
-			i += numMagicBytes;
-			while(checkMatch(&inputBuffer[i], JPEG_TERMINATOR, JPEG_TERMINATOR_SIZE) == false)
-			{
-				i++;
-			}
-			newJpeg.setSize((i + JPEG_TERMINATOR_SIZE) - newJpeg.getOffset());
-			jpegList.push_back(newJpeg);
-
-			i += JPEG_TERMINATOR_SIZE - 1;
-		}
-		else
-		{
-			i++;
-		}
-	}
-
-	// Second pass, read and repair jpegs
-	unsigned char* data = NULL;
-	for(vector<Jpeg>::iterator jpegIt = jpegList.begin(); jpegIt != jpegList.end(); jpegIt++)
-	{
-		// Read jpeg data
-		data = new unsigned char[jpegIt->getSize()];
-		memcpy(data, &inputBuffer[jpegIt->getOffset()], jpegIt->getSize());
-		
-		// Repair obfuscated starting bytes
-		memcpy(data, JPEG_START, JPEG_START_SIZE);
-
-		// Save data
-		jpegIt->setData(data);
-		data = NULL;
-	}
+	vector<Jpeg> jpegList = readJpegsFromInput(inputFileName, magicBytes, numMagicBytes);
 
 	// Calculate hash
 	for(vector<Jpeg>::iterator jpegIt = jpegList.begin(); jpegIt != jpegList.end(); jpegIt++)
@@ -244,10 +263,8 @@ int main(int argc, char* argv[])
 	// Output jpegs
 	outputJpegs(jpegList, inputFileName);
 
-	// Clean (input buffer, magic bytes)
-	delete [] inputBuffer;
+	// Clean (magic bytes)
 	delete [] magicBytes;
-	inputBuffer = NULL;
 	magicBytes = NULL;
 
 	return 0;
