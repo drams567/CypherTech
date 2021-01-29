@@ -64,7 +64,7 @@ public:
 
 /***********************/
 /******* Utility *******/
-void readFileToBuffer(string fileName, unsigned char* &buffer, int32_t &size)
+void readFileToBuffer(const string fileName, unsigned char* &buffer, int32_t &size)
 {
 	// Open file stream
 	ifstream fileStream;
@@ -100,6 +100,47 @@ bool checkMatch(const unsigned char* source, const unsigned char* match, const i
 
 /***********************/
 /***** Procedures ******/
+void readMagicBytesFromKDB(const string kdbFileName, unsigned char* &magicBytes, int32_t &numMagicBytes)
+{
+	// Read kdb file into buffer
+	int32_t kdbStreamLen = 0;
+	unsigned char* kdbBuffer = NULL;
+	readFileToBuffer(kdbFileName, kdbBuffer, kdbStreamLen);
+
+	// Parse kdb for entries
+	vector<Entry> entryList = parseKDB(kdbBuffer, kdbStreamLen);
+
+	// Clean buffer
+	delete [] kdbBuffer;
+	kdbBuffer = NULL;
+
+	// Find magic bytes
+	bool found = false;
+	vector<Entry>::iterator entryIt = entryList.begin();
+	while(found == false && entryIt != entryList.end())
+	{
+		if(entryIt->name == "MAGIC")
+		{
+			numMagicBytes = entryIt->size;
+			magicBytes = new unsigned char[numMagicBytes];
+			memcpy(magicBytes, entryIt->data, numMagicBytes);
+			
+			found = true;
+		}
+		entryIt++;
+	}
+	
+	// Clean entries
+	for(vector<Entry>::iterator entryIt = entryList.begin(); entryIt != entryList.end(); entryIt++)
+	{
+		if(entryIt->data != NULL)
+		{
+			delete [] entryIt->data;
+			entryIt->data = NULL;
+		}
+	}
+}
+
 void outputJpegs(vector<Jpeg> &jpegList, const string inputFileName)
 {
 	string outputDir = inputFileName + "_Repaired";
@@ -132,36 +173,16 @@ void outputJpegs(vector<Jpeg> &jpegList, const string inputFileName)
 /********* Main ********/
 int main(int argc, char* argv[])
 {
-	// Put kdbFile into buffer
+	// Parse kdb for magic bytes
 	string kdbFileName = argv[1];
-	int32_t kdbStreamLen = 0;
-	unsigned char* kdbBuffer = NULL;
-	readFileToBuffer(kdbFileName, kdbBuffer, kdbStreamLen);
-
-	// Parse kdb for entries
-	vector<Entry> entryList = parseKDB(kdbBuffer, kdbStreamLen);
-
-	// Clean buffer
-	delete [] kdbBuffer;
-	kdbBuffer = NULL;
-
-	// Find magic bytes
 	unsigned char* magicBytes = NULL;
 	int32_t numMagicBytes = 0;
-	int numEntries = (int)entryList.size();
-	for(int i = 0; i < numEntries; i++)
-	{
-		if(entryList.at(i).name == "MAGIC")
-		{
-			magicBytes = entryList.at(i).data;
-			numMagicBytes = entryList.at(i).size;
-		}
-	}
+	readMagicBytesFromKDB(kdbFileName, magicBytes, numMagicBytes);
 
 	// Check for missing entry
-	if(magicBytes == NULL)
+	if(magicBytes == NULL || numMagicBytes == 0)
 	{
-		cerr << "No magic entry found in KDB file. Quitting..." << endl;
+		cerr << "Magic bytes not found. Quitting..." << endl;
 		exit(0);
 	}
 
@@ -211,10 +232,6 @@ int main(int argc, char* argv[])
 		jpegIt->setData(data);
 		data = NULL;
 	}
-	
-	// Clean input file buffer
-	delete [] inputBuffer;
-	inputBuffer = NULL;
 
 	// Calculate hash
 	for(vector<Jpeg>::iterator jpegIt = jpegList.begin(); jpegIt != jpegList.end(); jpegIt++)
@@ -227,15 +244,11 @@ int main(int argc, char* argv[])
 	// Output jpegs
 	outputJpegs(jpegList, inputFileName);
 
-	// Clean entries
-	for(i = 0; i < (int32_t)entryList.size(); i++)
-	{
-		if(entryList.at(i).data != NULL)
-		{
-			delete [] entryList.at(i).data;
-			entryList.at(i).data = NULL;
-		}
-	}
+	// Clean (input buffer, magic bytes)
+	delete [] inputBuffer;
+	delete [] magicBytes;
+	inputBuffer = NULL;
+	magicBytes = NULL;
 
 	return 0;
 }
