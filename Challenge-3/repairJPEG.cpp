@@ -63,6 +63,27 @@ public:
 };
 
 /***********************/
+/******* Utility *******/
+void readFileToBuffer(string fileName, unsigned char* &buffer, int32_t &size)
+{
+	// Open file stream
+	ifstream fileStream;
+	fileStream.open(fileName, ifstream::binary | ifstream::in); // read as binary, Reference: http://www.cplusplus.com/reference/istream/istream/read/
+	
+	// Get file length, Reference: http://www.cplusplus.com/reference/istream/istream/read/
+	fileStream.seekg(0, fileStream.end);
+	size = fileStream.tellg();
+	fileStream.seekg(0, fileStream.beg);
+
+	// Read file into buffer
+	buffer = new unsigned char[size];
+	fileStream.read((char*)buffer, size);
+	
+	// Close
+	fileStream.close();
+}
+
+/***********************/
 /******* Parsing *******/
 bool checkMatch(const unsigned char* source, const unsigned char* match, const int32_t size)
 {
@@ -111,22 +132,13 @@ void outputJpegs(vector<Jpeg> &jpegList, const string inputFileName)
 /********* Main ********/
 int main(int argc, char* argv[])
 {
-	// Open kdb file stream
-	string kdbFileName = argv[1];
-	ifstream kdbStream;
-	kdbStream.open(kdbFileName, ifstream::binary | ifstream::in); // read as binary, Reference: http://www.cplusplus.com/reference/istream/istream/read/
-	
-	// Get file length, Reference: http://www.cplusplus.com/reference/istream/istream/read/
-	kdbStream.seekg(0, kdbStream.end);
-	int kdbStreamLen = kdbStream.tellg();
-	kdbStream.seekg(0, kdbStream.beg);
-
 	// Put kdbFile into buffer
-	unsigned char* kdbBuffer = new unsigned char[kdbStreamLen];
-	kdbStream.read((char*)kdbBuffer, kdbStreamLen);
-	kdbStream.close();
+	string kdbFileName = argv[1];
+	int32_t kdbStreamLen = 0;
+	unsigned char* kdbBuffer = NULL;
+	readFileToBuffer(kdbFileName, kdbBuffer, kdbStreamLen);
 
-	// Parse buffer for entries
+	// Parse kdb for entries
 	vector<Entry> entryList = parseKDB(kdbBuffer, kdbStreamLen);
 
 	// Clean buffer
@@ -155,13 +167,9 @@ int main(int argc, char* argv[])
 
 	// Put input file into buffer
 	string inputFileName = argv[2];
-	ifstream inputStream;
-	inputStream.open(inputFileName, ifstream::binary | ifstream::in); // read as binary, Reference: http://www.cplusplus.com/reference/istream/istream/read/
-	inputStream.seekg(0, inputStream.end);
-	int inputStreamLen = inputStream.tellg();
-	inputStream.seekg(0, inputStream.beg);
-	unsigned char* inputBuffer = new unsigned char[inputStreamLen];
-	inputStream.read((char*)inputBuffer, inputStreamLen);
+	int inputStreamLen = 0;
+	unsigned char* inputBuffer = NULL;
+	readFileToBuffer(inputFileName, inputBuffer, inputStreamLen);
 
 	// First pass, identify jpegs
 	vector<Jpeg> jpegList;
@@ -188,7 +196,7 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	// Read and repair jpegs
+	// Second pass, read and repair jpegs
 	unsigned char* data = NULL;
 	for(vector<Jpeg>::iterator jpegIt = jpegList.begin(); jpegIt != jpegList.end(); jpegIt++)
 	{
