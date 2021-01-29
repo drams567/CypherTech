@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 
 #include "parseKDB.h"
+#include "md5.h"		// MD5 hash library, Provided by: http://www.zedwood.com/article/cpp-md5-function
 
 using namespace std;
 
@@ -18,18 +19,19 @@ const int32_t JPEG_TERMINATOR_SIZE = 2;
 /***********************/
 /******* Classes *******/
 class Jpeg {
-public:
+private:
 	int32_t size;
 	int32_t offset;
-	long hash;
+	string hash;
 	string outPath;
 	unsigned char* data;
 
+public:
 	Jpeg()
 	{
 		size = 0;
 		offset = 0;
-		hash = 0;
+		hash = " ";
 		outPath = " ";
 		data = NULL;
 	}
@@ -42,10 +44,17 @@ public:
 		}
 	}
 	
-	void setOutPath(string newOutPath)
-	{
-		outPath = newOutPath;
-	}
+	void setOutPath(string newOutPath) { outPath = newOutPath; }
+	void setHash(string newHash) { hash = newHash; }
+	void setData(unsigned char* newData) { data = newData; }
+	void setOffset(int32_t newOffset) { offset = newOffset; }
+	void setSize(int32_t newSize) { size = newSize; }
+	
+	unsigned char* getData() { return data; }
+	int32_t getOffset() { return offset; }
+	int32_t getSize() { return size; }
+	string getHash() { return hash; }
+	string getOutPath() { return outPath; }
 };
 
 /***********************/
@@ -80,10 +89,10 @@ void outputJpegs(vector<Jpeg> &jpegList, const string inputFileName)
 	
 	for(vector<Jpeg>::iterator jpegIt = jpegList.begin(); jpegIt != jpegList.end(); jpegIt++)
 	{
-		string outPath = outputDir + "/" + to_string(jpegIt->offset) + ".jpeg";
+		string outPath = outputDir + "/" + to_string(jpegIt->getOffset()) + ".jpeg";
 		ofstream jpegStream;
 		jpegStream.open(outPath, ostream::binary | ostream::trunc);
-		jpegStream.write((char*)jpegIt->data, jpegIt->size);
+		jpegStream.write((char*)jpegIt->getData(), jpegIt->getSize());
 		jpegStream.close();
 	
 		jpegIt->setOutPath(outPath);
@@ -154,13 +163,13 @@ int main(int argc, char* argv[])
 		if(checkMatch(&inputBuffer[i], magicBytes, numMagicBytes) == true)
 		{
 			Jpeg newJpeg;
-			newJpeg.offset = i;
+			newJpeg.setOffset(i);
 			i += numMagicBytes;
 			while(checkMatch(&inputBuffer[i], JPEG_TERMINATOR, JPEG_TERMINATOR_SIZE) == false)
 			{
 				i++;
 			}
-			newJpeg.size = (i + JPEG_TERMINATOR_SIZE) - newJpeg.offset;
+			newJpeg.setSize((i + JPEG_TERMINATOR_SIZE) - newJpeg.getOffset());
 			jpegList.push_back(newJpeg);
 
 			i += JPEG_TERMINATOR_SIZE - 1;
@@ -176,13 +185,14 @@ int main(int argc, char* argv[])
 	for(vector<Jpeg>::iterator jpegIt = jpegList.begin(); jpegIt != jpegList.end(); jpegIt++)
 	{
 		// Read jpeg data
-		data = new unsigned char[jpegIt->size];
-		memcpy(data, &inputBuffer[jpegIt->offset], jpegIt->size);
+		data = new unsigned char[jpegIt->getSize()];
+		memcpy(data, &inputBuffer[jpegIt->getOffset()], jpegIt->getSize());
 		
 		// Repair obfuscated starting bytes
 		memcpy(data, JPEG_START, JPEG_START_SIZE);
 
-		jpegIt->data = data;
+		// Save data
+		jpegIt->setData(data);
 		data = NULL;
 	}
 	
@@ -193,14 +203,18 @@ int main(int argc, char* argv[])
 	// Output jpegs
 	outputJpegs(jpegList, inputFileName);
 
-	// Clean jpegs	
+	// Calculate hash
 	for(vector<Jpeg>::iterator jpegIt = jpegList.begin(); jpegIt != jpegList.end(); jpegIt++)
 	{
-		if(jpegIt->data != NULL)
-		{
-			delete [] jpegIt->data;
-			jpegIt->data = NULL;
-		}
+		string data((char*)jpegIt->getData(), jpegIt->getSize());
+		string hash = md5(data);
+		jpegIt->setHash(hash);
+	}
+
+	// Print jpeg info
+	for(vector<Jpeg>::iterator jpegIt = jpegList.begin(); jpegIt != jpegList.end(); jpegIt++)
+	{
+		cout << jpegIt->getOffset() << " " << jpegIt->getSize() << " " << jpegIt->getHash() << " " << jpegIt->getOutPath() << endl;
 	}
 
 	// Clean entries
