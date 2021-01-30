@@ -20,14 +20,14 @@ const int32_t JPEG_TERMINATOR_SIZE = 2;               // Number of jpeg terminat
 /******* Classes *******/
 class Jpeg {
 private:
-	int32_t size;
-	int32_t offset;
-	string hash;
-	string outPath;
-	unsigned char* data;
+	unsigned char* data;	// Jpeg data
+	int32_t size;			// Length of data
+	int32_t offset;			// Offset within input file
+	string hash;			// md5 hash of jpeg data
+	string outPath;			// Relative output path for writing jpeg data
 
 public:
-	// Constructors and Destructor
+	// Construct and Destruct
 	Jpeg()
 	{
 		size = 0;
@@ -45,14 +45,14 @@ public:
 		}
 	}
 	
-	// Print
+	// Misc
 	void print()
 	{
 		cout << getOffset() << " " << getSize() << " " << getHash() << " " << getOutPath();
 	}
 	
 	
-	// Setters
+	// Setters and Getters
 	void setOutPath(string newOutPath) { outPath = newOutPath; }
 	void setHash(string newHash) { hash = newHash; }
 	void setOffset(int32_t newOffset) { offset = newOffset; }
@@ -62,8 +62,6 @@ public:
 		data = newData; 
 		size = newSize;
 	}
-	
-	// Getters
 	unsigned char* getData() { return data; }
 	int32_t getOffset() { return offset; }
 	int32_t getSize() { return size; }
@@ -83,12 +81,12 @@ void readFileToBuffer(const string fileName, unsigned char* &buffer, int32_t &si
 	ifstream fileStream;
 	fileStream.open(fileName, ifstream::binary | ifstream::in); // read as binary, Reference: http://www.cplusplus.com/reference/istream/istream/read/
 	
-	// Get file length, Reference: http://www.cplusplus.com/reference/istream/istream/read/
+	// Get length of file, Reference: http://www.cplusplus.com/reference/istream/istream/read/
 	fileStream.seekg(0, fileStream.end);
 	size = fileStream.tellg();
 	fileStream.seekg(0, fileStream.beg);
 
-	// Read entire file into buffer
+	// Read file into buffer
 	buffer = new unsigned char[size];
 	fileStream.read((char*)buffer, size);
 	
@@ -118,6 +116,10 @@ bool checkMatch(const unsigned char* source, const unsigned char* match, const i
 
 /***********************/
 /***** Procedures ******/
+// readMagicBytesFromKDB(): parse kdb file for magic bytes (found within 'MAGIC' entry)
+// Params: 	string; name or path of kdb file
+//			(OUT) unsigned char*; pointer to magic bytes
+//			(OUT) int32_t; length of magic bytes (i.e. number of magic bytes)
 void readMagicBytesFromKDB(const string kdbFileName, unsigned char* &magicBytes, int32_t &numMagicBytes)
 {
 	// Read kdb file into buffer
@@ -128,21 +130,19 @@ void readMagicBytesFromKDB(const string kdbFileName, unsigned char* &magicBytes,
 	// Parse kdb for entries
 	vector<Entry> entryList = parseKDB(kdbBuffer, kdbStreamLen);
 
-	// Clean buffer
-	delete [] kdbBuffer;
-	kdbBuffer = NULL;
-
-	// Find magic bytes
+	// Search for magic bytes entry
 	bool found = false;
 	vector<Entry>::iterator entryIt = entryList.begin();
 	while(found == false && entryIt != entryList.end())
 	{
-		if(entryIt->name == "MAGIC")
+		if(entryIt->name == "MAGIC") // magic bytes found in entry named MAGIC
 		{
+			// Copy magic bytes into output var
 			numMagicBytes = entryIt->size;
 			magicBytes = new unsigned char[numMagicBytes];
 			memcpy(magicBytes, entryIt->data, numMagicBytes);
 			
+			// End search
 			found = true;
 		}
 		entryIt++;
@@ -157,8 +157,19 @@ void readMagicBytesFromKDB(const string kdbFileName, unsigned char* &magicBytes,
 			entryIt->data = NULL;
 		}
 	}
+	
+	// Clean buffer
+	delete [] kdbBuffer;
+	kdbBuffer = NULL;
 }
 
+// readJpegsFromInput(): Reads and repairs jpeg data from input file.
+// Ignores jpegs not starting with magic bytes.
+// Params:	string; name or path of input file
+//			unsigned char*; pointer to array of magic bytes indicating jpeg file
+//			int32_t; length of magic bytes array (i.e. number of magic bytes)
+// Return:	vector<Jpeg>; vector of jpeg objects parsed from input file, with magic bytes 
+//			repaired to standard jpeg indicator bytes.
 vector<Jpeg> readJpegsFromInput(const string inputFileName, unsigned char* magicBytes, int32_t numMagicBytes)
 {
 	vector<Jpeg> jpegList;
@@ -172,19 +183,25 @@ vector<Jpeg> readJpegsFromInput(const string inputFileName, unsigned char* magic
 	int32_t i = 0;
 	while(i < inputStreamLen)
 	{
+		// If jpeg found
 		if(checkMatch(&inputBuffer[i], magicBytes, numMagicBytes) == true)
 		{
 			Jpeg newJpeg;
-			newJpeg.setOffset(i);
-			i += numMagicBytes;
+			newJpeg.setOffset(i); // save offset
+		
+			// Find end of jpeg and calculate size
+			i += numMagicBytes; // skip magic bytes
 			while(checkMatch(&inputBuffer[i], JPEG_TERMINATOR, JPEG_TERMINATOR_SIZE) == false)
 			{
 				i++;
 			}
-			int32_t size = (i + JPEG_TERMINATOR_SIZE) - newJpeg.getOffset();
+			int32_t size = (i + JPEG_TERMINATOR_SIZE) - newJpeg.getOffset(); // accounts for length of terminator
+
+			// Save jpeg info to list
 			newJpeg.setSize(size);
 			jpegList.push_back(newJpeg);
 
+			// Move to end of terminator
 			i += JPEG_TERMINATOR_SIZE - 1;
 		}
 		else
@@ -212,10 +229,15 @@ vector<Jpeg> readJpegsFromInput(const string inputFileName, unsigned char* magic
 	return jpegList;
 }
 
+// outputJpegs(): prints jpeg metadata and writes jpegs to output directory.
+// Output directory is created if one does not exist.
+// Not fully tested on linux.
+// Params:	vector<Jpeg>; list of repaired jpegs to output
+//			string; name of input file the jpegs were recieved from
 void outputJpegs(vector<Jpeg> &jpegList, const string inputFileName)
-{
+{	
+	// Create output directory
 	string outputDir = inputFileName + "_Repaired";
-	
 	#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
 		// Create directory (Windows), Reference: https://docs.microsoft.com/en-us/windows/win32/fileio/retrieving-and-changing-file-attributes
 		#include <windows.h>
@@ -225,16 +247,20 @@ void outputJpegs(vector<Jpeg> &jpegList, const string inputFileName)
 		mkdir(outputDir.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
 	#endif
 	
+	// Write jpegs to output directory, and print their info
 	for(vector<Jpeg>::iterator jpegIt = jpegList.begin(); jpegIt != jpegList.end(); jpegIt++)
 	{
-		string outPath = outputDir + "/" + to_string(jpegIt->getOffset()) + ".jpeg";
+		// Create outpath for jpeg
+		string outPath = outputDir + "/" + to_string(jpegIt->getOffset()) + ".jpeg"; // relative path
 		jpegIt->setOutPath(outPath);
 		
+		// Write jpeg to outpath
 		ofstream jpegStream;
 		jpegStream.open(outPath, ostream::binary | ostream::trunc);
 		jpegStream.write((char*)jpegIt->getData(), jpegIt->getSize());
 		jpegStream.close();
 		
+		// Print jpeg info
 		jpegIt->print();
 		cout << endl;
 	}
@@ -272,7 +298,7 @@ int main(int argc, char* argv[])
 	// Output jpegs
 	outputJpegs(jpegList, inputFileName);
 
-	// Clean (magic bytes)
+	// Clean
 	delete [] magicBytes;
 	magicBytes = NULL;
 
