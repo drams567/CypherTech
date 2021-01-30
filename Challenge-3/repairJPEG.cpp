@@ -5,16 +5,16 @@
 #include <sys/stat.h>
 
 #include "parseKDB.h"
-#include "md5.h"		// MD5 hash library, Provided by: http://www.zedwood.com/article/cpp-md5-function
+#include "md5.h"     // MD5 hash library, Provided by: http://www.zedwood.com/article/cpp-md5-function
 
 using namespace std;
 
 /***********************/
 /****** Constants ******/
-const unsigned char JPEG_START[] = {0xFF, 0xD8, 0xFF};
-const unsigned char JPEG_TERMINATOR[] = {0xFF, 0xD9};
-const int32_t JPEG_START_SIZE = 3;
-const int32_t JPEG_TERMINATOR_SIZE = 2;
+const unsigned char JPEG_START[] = {0xFF, 0xD8, 0xFF}; // Starting indicator bytes of a jpeg file
+const unsigned char JPEG_TERMINATOR[] = {0xFF, 0xD9}; // Terminating bytes of a jpeg file
+const int32_t JPEG_START_SIZE = 3;                    // Number of jpeg indicating bytes
+const int32_t JPEG_TERMINATOR_SIZE = 2;               // Number of jpeg terminating bytes
 
 /***********************/
 /******* Classes *******/
@@ -73,9 +73,13 @@ public:
 
 /***********************/
 /******* Utility *******/
+// readFileToBuffer(): Reads a binary file into a byte array.
+// Ignores passed value of buffer argument, and size argument.
+// Params:  string; name of binary file
+//          (OUT) unsigned char*; buffer holding binary file data
+//          (OUT) int32_t; size of the buffer/binary file data
 void readFileToBuffer(const string fileName, unsigned char* &buffer, int32_t &size)
 {
-	// Open file stream
 	ifstream fileStream;
 	fileStream.open(fileName, ifstream::binary | ifstream::in); // read as binary, Reference: http://www.cplusplus.com/reference/istream/istream/read/
 	
@@ -84,16 +88,21 @@ void readFileToBuffer(const string fileName, unsigned char* &buffer, int32_t &si
 	size = fileStream.tellg();
 	fileStream.seekg(0, fileStream.beg);
 
-	// Read file into buffer
+	// Read entire file into buffer
 	buffer = new unsigned char[size];
 	fileStream.read((char*)buffer, size);
 	
-	// Close
 	fileStream.close();
 }
 
 /***********************/
 /******* Parsing *******/
+// checkMatch(): compares two byte arrays for equivalent data.
+// Size assumed to be greater than zero, and less than or equal to the length of the smallest byte array.
+// Params:  unsigned char*; first byte array for comparison.
+//          unsigned char*; second byte array for comparison.
+//          size; number of bytes to compare.
+// Return: bool; flag if arrays have matching data. True for equivalent, false for not equivalent.
 bool checkMatch(const unsigned char* source, const unsigned char* match, const int32_t size)
 {
 	for(int i = 0; i < size; i++)
