@@ -1,3 +1,14 @@
+// David Ramsey
+// Last updated 01/31/2021
+// Dependencies: parseKDB.h lsfr.h md5.h
+// Non-std Libraries: md5.cpp/.h used for md5 hash function, source: http://www.zedwood.com/article/cpp-md5-function
+// REFERENCES:
+// - For opending a binary file properly, and getting file length, Reference: http://www.cplusplus.com/reference/istream/istream/read/
+// - For formatting output via iomanip library, Reference: https://www.cplusplus.com/reference/iomanip/
+// - md5 hash function, Source: http://www.zedwood.com/article/cpp-md5-function
+// - Create a directory (Windows), Reference: https://docs.microsoft.com/en-us/windows/win32/fileio/retrieving-and-changing-file-attributes
+// - Create a directory (Linux/Unix), References: https://linux.die.net/man/3/mkdir, https://pubs.opengroup.org/onlinepubs/7908799/xsh/sysstat.h.html
+
 #include <iostream>
 #include <fstream>
 #include <stdio.h>
@@ -49,7 +60,7 @@ public:
 	// Misc
 	void print()
 	{
-		cout << setw(10) << getOffset() << setw(10) << getSize() << setw(40) << getHash() << setw(40) << getOutPath();
+		cout << setw(10) << getOffset() << setw(10) << getSize() << setw(40) << getHash() << setw(40) << getOutPath(); // Reference: https://www.cplusplus.com/reference/iomanip/
 	}
 	
 	
@@ -248,7 +259,7 @@ void outputJpegs(vector<Jpeg> &jpegList, const string inputFileName)
 		mkdir(outputDir.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
 	#endif
 	
-	cout << endl << endl << setw(10) << "Offset" << setw(10) << "Size" << setw(40) << "Hash" << setw(40) << "Out Path" << endl;
+	cout << endl << endl << setw(10) << "Offset" << setw(10) << "Size" << setw(40) << "Hash" << setw(40) << "Out Path" << endl; // Reference: https://www.cplusplus.com/reference/iomanip/
 	cout << string(100, '-') << endl;
 	// Write jpegs to output directory, and print their info
 	for(vector<Jpeg>::iterator jpegIt = jpegList.begin(); jpegIt != jpegList.end(); jpegIt++)
@@ -296,7 +307,7 @@ int main(int argc, char* argv[])
 	for(vector<Jpeg>::iterator jpegIt = jpegList.begin(); jpegIt != jpegList.end(); jpegIt++)
 	{
 		string data((char*)jpegIt->getData(), jpegIt->getSize());
-		string hash = md5(data); // courtesy of md5 library: http://www.zedwood.com/article/cpp-md5-function
+		string hash = md5(data); // md5 library source: http://www.zedwood.com/article/cpp-md5-function
 		jpegIt->setHash(hash);
 	}
 

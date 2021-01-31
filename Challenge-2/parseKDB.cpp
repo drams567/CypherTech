@@ -1,3 +1,10 @@
+// David Ramsey
+// Last updated 01/31/2021
+// Dependencies: lsfr.h
+// REFERENCES:
+// - For opending a binary file properly, and getting file length: http://www.cplusplus.com/reference/istream/istream/read/
+// - For formatting output via iomanip library, Reference: https://www.cplusplus.com/reference/iomanip/
+
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -150,8 +157,8 @@ int main(int argc, char* argv[])
 	kdbBuffer = NULL;
 
 	// Print entries
-	cout << endl << setw(16) << "Name" << " -- Data" << endl;
-	cout << string(50, '-') << endl;
+	cout << endl << setw(16) << "Name" << " -- Data" << endl; // formatting via iomanip library, Reference: https://www.cplusplus.com/reference/iomanip/
+	cout << string(50, '-') << endl; // Print line of dashes
 	for(int32_t i = 0; i < (int)entryList.size(); i++)
 	{
 		cout << setw(16) << entryList.at(i).name << " -- ";

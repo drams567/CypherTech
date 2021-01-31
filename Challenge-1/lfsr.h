@@ -1,3 +1,7 @@
+// David Ramsey
+// Last updated 01/31/2021
+// REFERENCES: None, only provided materials used.
+
 #ifndef LSFR_H
 #define LSFR_H
 

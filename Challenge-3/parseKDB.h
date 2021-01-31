@@ -1,3 +1,8 @@
+// David Ramsey
+// Last updated 01/31/2021
+// Dependencies: lsfr.h
+// REFERENCES: None, only provided materials used. **Reading in file, and output formatting moved to repairJpeg.cpp for Challenge-3**
+
 #ifndef PARSEKDB_H
 #define PARSEKDB_H
 
