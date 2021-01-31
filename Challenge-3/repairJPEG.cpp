@@ -238,6 +238,10 @@ vector<Jpeg> readJpegsFromInput(const string inputFileName, unsigned char* magic
 		data = NULL;
 	}
 	
+	// Clean
+	delete [] inputBuffer;
+	inputBuffer = NULL;
+	
 	return jpegList;
 }
 
