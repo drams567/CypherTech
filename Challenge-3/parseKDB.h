@@ -12,13 +12,13 @@ using namespace std;
 
 /***********************/
 /****** Constants ******/
-const long NUM_MAGIC_BYTES = 6;
-const long ENTRY_SIZE = 20;
-const long BLOCK_SIZE = 6;
-const int32_t LIST_TERMINATOR = 0xFFFFFFFF;
-const int MAX_ENTRY_NAME = 16;
-const unsigned int DECRYPT_KEY = 0x4F574154;
-const int BYTE = 8;
+const long NUM_MAGIC_BYTES = 6;				// Length of magic bytes within kdb header
+const long ENTRY_SIZE = 20;					// Number of bytes for each entry within kdb entry list (16 character name + 32 bit int pointer)
+const long BLOCK_SIZE = 6;					// Number of bytes for each block within any kdb block list (16 bit int + 32 bit int pointer)
+const int32_t LIST_TERMINATOR = 0xFFFFFFFF;	// Terminator value for kdb block list and entry list
+const int MAX_ENTRY_NAME = 16;				// Maximum length of an entry name (including null terminator)
+const unsigned int DECRYPT_KEY = 0x4F574154;// Given key for decrypting kdb data
+const int BYTE = 8;							// Number of bits within a byte
 
 /***********************/
 /******* Structs *******/
@@ -58,6 +58,7 @@ T readLittleEndian(const unsigned char* buffer, const int32_t startPos)
 // Return:	bool; flag for if list terminator is present. True if present, false if not found.
 bool checkForListEnd(const unsigned char* buffer, const int32_t startPos)
 {
+	// Read buffer value as big endian integer
 	int32_t nextBufferValue = 0x0;
 	for(int32_t i = (sizeof(int32_t) - 1); i >= 0; i--)
 	{
@@ -80,7 +81,7 @@ vector<Entry> parseKDB(const unsigned char* kdbBuffer, const int32_t bufferLen)
 	int32_t entryIndex = entryListPos;
 	while(checkForListEnd(kdbBuffer, entryIndex) == false)
 	{
-		// Read entry info
+		// Read entry name and position of block list
 		string entryName = (char*)&kdbBuffer[entryIndex];
 		int32_t blockListPos = readLittleEndian<int32_t>(kdbBuffer, (entryIndex + MAX_ENTRY_NAME));
 		
@@ -99,7 +100,7 @@ vector<Entry> parseKDB(const unsigned char* kdbBuffer, const int32_t bufferLen)
 			blockIndex += BLOCK_SIZE;
 		}
 	
-		// Read data from blocks into single buffer
+		// Collect block data into buffer
 		unsigned char* data = new unsigned char[totalDataSize];
 		int32_t numBlocks = (int32_t)blockList.size();
 		int32_t readCount = 0;
@@ -116,7 +117,7 @@ vector<Entry> parseKDB(const unsigned char* kdbBuffer, const int32_t bufferLen)
 		// Decrypt data
 		data = Crypt(data, totalDataSize, DECRYPT_KEY);
 	
-		// Store data
+		// Store data and entry
 		Entry newEntry;
 		newEntry.name = entryName;
 		newEntry.data = data;
