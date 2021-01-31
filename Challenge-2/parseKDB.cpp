@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <iomanip>
 #include <string>
 #include <cstring>
 #include <stdint.h>
@@ -149,10 +150,11 @@ int main(int argc, char* argv[])
 	kdbBuffer = NULL;
 
 	// Print entries
-	cout << "Name\t--\tData" << endl;
+	cout << endl << setw(16) << "Name" << " -- Data" << endl;
+	cout << string(50, '-') << endl;
 	for(int32_t i = 0; i < (int)entryList.size(); i++)
 	{
-		cout << entryList.at(i).name << "\t--\t";
+		cout << setw(16) << entryList.at(i).name << " -- ";
 		for(int32_t k = 0; k < (int32_t)entryList.at(i).size; k++)
 		{
 			cout << entryList.at(i).data[k];
