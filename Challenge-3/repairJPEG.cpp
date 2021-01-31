@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <stdio.h>
+#include <iomanip>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -48,7 +49,7 @@ public:
 	// Misc
 	void print()
 	{
-		cout << getOffset() << " " << getSize() << " " << getHash() << " " << getOutPath();
+		cout << setw(10) << getOffset() << setw(10) << getSize() << setw(40) << getHash() << setw(40) << getOutPath();
 	}
 	
 	
@@ -247,6 +248,8 @@ void outputJpegs(vector<Jpeg> &jpegList, const string inputFileName)
 		mkdir(outputDir.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
 	#endif
 	
+	cout << endl << endl << setw(10) << "Offset" << setw(10) << "Size" << setw(40) << "Hash" << setw(40) << "Out Path" << endl;
+	cout << string(100, '-') << endl;
 	// Write jpegs to output directory, and print their info
 	for(vector<Jpeg>::iterator jpegIt = jpegList.begin(); jpegIt != jpegList.end(); jpegIt++)
 	{
@@ -264,6 +267,8 @@ void outputJpegs(vector<Jpeg> &jpegList, const string inputFileName)
 		jpegIt->print();
 		cout << endl;
 	}
+	
+	cout << endl;
 }
 
 /***********************/
